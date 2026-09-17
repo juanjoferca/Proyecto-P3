@@ -1,6 +1,8 @@
 package unit.funcionarios;
 
+import model.EstadoReserva;
 import model.Funcionario;
+import model.Reserva;
 import model.Rol;
 import model.Usuario;
 import org.junit.jupiter.api.BeforeEach;
@@ -8,17 +10,22 @@ import org.junit.jupiter.api.Test;
 import service.AuthService;
 import service.FuncionarioService;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class FuncionarioServiceTest {
 
     private FuncionarioService servicio;
     private UsuarioRepositoryEnMemoria usuarios;
+    private ReservaRepositoryEnMemoria reservas;
 
     @BeforeEach
     void prepararCadaPrueba() {
         usuarios = new UsuarioRepositoryEnMemoria();
-        servicio = new FuncionarioService(new FuncionarioRepositoryEnMemoria(), usuarios);
+        reservas = new ReservaRepositoryEnMemoria();
+        servicio = new FuncionarioService(new FuncionarioRepositoryEnMemoria(), usuarios, reservas);
     }
 
     @Test
@@ -90,6 +97,28 @@ class FuncionarioServiceTest {
     @Test
     void noEliminaUnFuncionarioInexistente() {
         assertThrows(IllegalArgumentException.class, () -> servicio.eliminar("999"));
+    }
+
+    @Test
+    void noEliminaUnFuncionarioConReservasFuturasActivas() {
+        servicio.incluir("111", "Juan Perez", "3323");
+        reservas.guardar(new Reserva("RES-000001", "Reunion", LocalDate.now().plusDays(5),
+                LocalTime.of(9, 0), LocalTime.of(10, 0), "111", EstadoReserva.ACTIVA));
+
+        assertThrows(IllegalArgumentException.class, () -> servicio.eliminar("111"));
+        assertNotNull(servicio.buscarPorId("111"));
+    }
+
+    @Test
+    void siEliminaUnFuncionarioConReservasCanceladasOPasadas() {
+        servicio.incluir("111", "Juan Perez", "3323");
+        reservas.guardar(new Reserva("RES-000002", "Reunion", LocalDate.now().plusDays(5),
+                LocalTime.of(9, 0), LocalTime.of(10, 0), "111", EstadoReserva.CANCELADA));
+        reservas.guardar(new Reserva("RES-000003", "Reunion pasada", LocalDate.now().minusDays(5),
+                LocalTime.of(9, 0), LocalTime.of(10, 0), "111", EstadoReserva.ACTIVA));
+
+        assertDoesNotThrow(() -> servicio.eliminar("111"));
+        assertNull(servicio.buscarPorId("111"));
     }
 
     @Test

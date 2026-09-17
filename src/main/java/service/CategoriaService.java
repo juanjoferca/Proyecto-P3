@@ -1,8 +1,6 @@
 package service;
 
 import model.CategoriaRecurso;
-import model.Recurso;
-import model.Reserva;
 import repository.CategoriaRepository;
 import repository.RecursoRepository;
 import repository.ReservaRepository;
@@ -70,18 +68,9 @@ public class CategoriaService {
         if (categoriaRepository.buscarPorId(id) == null)
             throw new IllegalArgumentException("No existe una categoría con ese ID.");
 
-        // Cascada: eliminar reservas que usan recursos de esta categoría, luego los recursos
-        if (recursoRepository != null && reservaRepository != null) {
-            List<Recurso> recursos = recursoRepository.buscarPorCategoria(id);
-            for (Recurso recurso : recursos) {
-                List<Reserva> reservasConRecurso = reservaRepository.listar().stream()
-                        .filter(r -> r.getDetalles().stream()
-                                .anyMatch(d -> d.getRecurso() != null
-                                        && d.getRecurso().getId().equals(recurso.getId())))
-                        .collect(java.util.stream.Collectors.toList());
-                reservasConRecurso.forEach(reservaRepository::eliminar);
-                recursoRepository.eliminar(recurso);
-            }
+        if (recursoRepository != null && !recursoRepository.buscarPorCategoria(id).isEmpty()) {
+            throw new IllegalArgumentException(
+                    "No se puede eliminar la categoría porque tiene recursos asociados.");
         }
 
         categoriaRepository.eliminar(id);

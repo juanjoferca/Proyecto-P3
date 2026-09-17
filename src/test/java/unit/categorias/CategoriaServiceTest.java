@@ -1,6 +1,7 @@
 package unit.categorias;
 
 import model.CategoriaRecurso;
+import model.Recurso;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import service.CategoriaService;
@@ -12,10 +13,12 @@ import static org.junit.jupiter.api.Assertions.*;
 class CategoriaServiceTest {
 
     private CategoriaService servicio;
+    private RecursoRepositoryEnMemoria recursos;
 
     @BeforeEach
     void prepararCadaPrueba() {
-        servicio = new CategoriaService(new CategoriaRepositoryEnMemoria());
+        recursos = new RecursoRepositoryEnMemoria();
+        servicio = new CategoriaService(new CategoriaRepositoryEnMemoria(), recursos, null);
     }
 
     @Test
@@ -106,5 +109,15 @@ class CategoriaServiceTest {
     void noEliminaUnaCategoriaInexistente() {
         assertThrows(IllegalArgumentException.class,
                 () -> servicio.eliminar("CAT-999999"));
+    }
+
+    @Test
+    void noEliminaUnaCategoriaConRecursosAsociados() {
+        servicio.incluir("Sala de juntas");
+        String id = servicio.listarTodos().get(0).getId();
+        recursos.guardar(new Recurso("R-001", servicio.buscarPorId(id), "Proyector"));
+
+        assertThrows(IllegalArgumentException.class, () -> servicio.eliminar(id));
+        assertNotNull(servicio.buscarPorId(id));
     }
 }

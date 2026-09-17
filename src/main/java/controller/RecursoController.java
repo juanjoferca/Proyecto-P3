@@ -5,7 +5,9 @@ import model.CategoriaRecurso;
 import report.PdfReportService;
 import report.ReportHeader;
 import report.ReportTable;
+import repository.CategoriaXmlRepository;
 import repository.RecursoXmlRepository;
+import repository.ReservaXmlRepository;
 import service.RecursoService;
 import service.CategoriaService;
 import service.SessionManager;
@@ -43,7 +45,8 @@ public class RecursoController extends JPanel {
 
     public RecursoController(CategoriaService categoriaService) {
         this.categoriaService = categoriaService;
-        this.recursoService = new RecursoService(new RecursoXmlRepository());
+        this.recursoService = new RecursoService(
+                new RecursoXmlRepository(), new CategoriaXmlRepository(), new ReservaXmlRepository());
         construirPantalla();
         cargarCategorias();
         cargarTabla(recursoService.listarTodos());
@@ -248,7 +251,8 @@ public class RecursoController extends JPanel {
                         r.getDescripcion());
             }
             String usuario = SessionManager.getInstancia().getUsuarioActual().getId();
-            ReportHeader header = new ReportHeader("Listado de Recursos", usuario, null);
+            ReportHeader header = new ReportHeader("Listado de Recursos", usuario,
+                    describirFiltro(catFiltro, descFiltro));
 
             JFileChooser selector = new JFileChooser();
             selector.setDialogTitle("Guardar reporte PDF");
@@ -263,6 +267,18 @@ public class RecursoController extends JPanel {
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Error al generar el reporte: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    private String describirFiltro(CategoriaRecurso catFiltro, String descFiltro) {
+        StringBuilder filtros = new StringBuilder();
+        if (catFiltro != null && catFiltro.getId() != null && !catFiltro.getId().isBlank()) {
+            filtros.append("Categoría: ").append(catFiltro.getDescripcion());
+        }
+        if (descFiltro != null && !descFiltro.isBlank()) {
+            if (filtros.length() > 0) filtros.append(", ");
+            filtros.append("Descripción: ").append(descFiltro);
+        }
+        return filtros.length() > 0 ? filtros.toString() : null;
     }
 
     private void alSeleccionarFila(ListSelectionEvent e) {

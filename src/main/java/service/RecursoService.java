@@ -1,20 +1,35 @@
 package service;
 
+import model.EstadoReserva;
 import model.Recurso;
 import model.CategoriaRecurso;
+import repository.CategoriaRepository;
 import repository.RecursoRepository;
+import repository.ReservaRepository;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public class RecursoService {
     private final RecursoRepository repository;
+    private final CategoriaRepository categoriaRepository;
+    private final ReservaRepository reservaRepository;
 
     public RecursoService() {
         this.repository = null;
+        this.categoriaRepository = null;
+        this.reservaRepository = null;
     }
 
     public RecursoService(RecursoRepository repository) {
+        this(repository, null, null);
+    }
+
+    public RecursoService(RecursoRepository repository, CategoriaRepository categoriaRepository,
+                          ReservaRepository reservaRepository) {
         this.repository = repository;
+        this.categoriaRepository = categoriaRepository;
+        this.reservaRepository = reservaRepository;
     }
 
     public List<Recurso> listarTodos() {
@@ -50,6 +65,19 @@ public class RecursoService {
         if (repository.buscarPorId(recurso.getId().trim()) == null) {
             throw new IllegalArgumentException("No existe un recurso con ese ID.");
         }
+
+        if (reservaRepository != null) {
+            boolean tieneReservasFuturas = reservaRepository.listar().stream()
+                    .anyMatch(r -> r.getEstado() == EstadoReserva.ACTIVA
+                            && !r.getFecha().isBefore(LocalDate.now())
+                            && r.getDetalles().stream().anyMatch(d -> d.getRecurso() != null
+                                    && recurso.getId().equals(d.getRecurso().getId())));
+            if (tieneReservasFuturas) {
+                throw new IllegalArgumentException(
+                        "No se puede eliminar el recurso porque tiene reservas futuras activas.");
+            }
+        }
+
         repository.eliminar(recurso);
     }
 
@@ -62,6 +90,10 @@ public class RecursoService {
         CategoriaRecurso categoria = recurso.getCategoria();
         if (categoria == null || categoria.isEmpty()) {
             throw new IllegalArgumentException("La categoría del recurso no puede ser nula o vacía.");
+        }
+
+        if (categoriaRepository != null && categoriaRepository.buscarPorId(categoria.getId()) == null) {
+            throw new IllegalArgumentException("La categoría seleccionada no existe.");
         }
 
         if (recurso.getDescripcion() == null || recurso.getDescripcion().isBlank()) {
