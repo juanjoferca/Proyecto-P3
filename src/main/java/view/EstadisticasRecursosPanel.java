@@ -1,19 +1,16 @@
 package view;
 
-import model.Recurso;
-import model.Reserva;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.DefaultCategoryDataset;
-import repository.RecursoRepository;
-import repository.RecursoXmlRepository;
 import repository.ReservaRepository;
 import report.PdfReportService;
 import report.ReportException;
 import report.ReportHeader;
 import report.ReportTable;
+import service.EstadisticasRecursosService;
 import service.SessionManager;
 
 import javax.imageio.ImageIO;
@@ -23,12 +20,15 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.net.URL;
-import java.util.LinkedHashMap;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 
 public class EstadisticasRecursosPanel extends JPanel {
 
+    private final JSpinner spnDesde;
+    private final JSpinner spnHasta;
     private final JButton btnCalcular;
     private final JButton btnImprimir;
     private final JLabel lblMensaje;
@@ -38,11 +38,11 @@ public class EstadisticasRecursosPanel extends JPanel {
     private final JFreeChart grafico;
     private final ChartPanel panelGrafico;
 
-    private ReservaRepository reservaRepo;
-    private final RecursoRepository recursoRepo = new RecursoXmlRepository();
+    private EstadisticasRecursosService servicio;
     private final PdfReportService pdfReportService = new PdfReportService();
 
-    private LinkedHashMap<String, Integer> ultimoResultado;
+    private Map<String, Integer> ultimoResultado;
+    private String ultimoPeriodo;
 
     public EstadisticasRecursosPanel() {
         setLayout(new BorderLayout(10, 10));
@@ -54,7 +54,14 @@ public class EstadisticasRecursosPanel extends JPanel {
         JPanel panelSuperior = new JPanel(new BorderLayout());
         panelSuperior.add(titulo, BorderLayout.NORTH);
 
-        JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel panelFiltros = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 8));
+
+        spnDesde = new JSpinner(new SpinnerDateModel());
+        spnDesde.setEditor(new JSpinner.DateEditor(spnDesde, "dd/MM/yyyy"));
+
+        spnHasta = new JSpinner(new SpinnerDateModel());
+        spnHasta.setEditor(new JSpinner.DateEditor(spnHasta, "dd/MM/yyyy"));
+
         btnCalcular = new JButton("Calcular");
         btnImprimir = new JButton("Imprimir");
         btnImprimir.setEnabled(false);
@@ -73,21 +80,28 @@ public class EstadisticasRecursosPanel extends JPanel {
             btnCalcular.setIcon(new ImageIcon(img));
         }
 
-        panelBotones.add(btnCalcular);
-        panelBotones.add(btnImprimir);
-        panelSuperior.add(panelBotones, BorderLayout.CENTER);
+        panelFiltros.add(new JLabel("Desde:"));
+        panelFiltros.add(spnDesde);
+        panelFiltros.add(new JLabel("Hasta:"));
+        panelFiltros.add(spnHasta);
+        panelFiltros.add(btnCalcular);
+        panelFiltros.add(btnImprimir);
+        panelSuperior.add(panelFiltros, BorderLayout.CENTER);
 
         lblMensaje = new JLabel(" ");
         lblMensaje.setForeground(new Color(180, 0, 0));
 
-        modeloTabla = new DefaultTableModel(new Object[]{"Recurso", "Reservas"}, 0);
+        modeloTabla = new DefaultTableModel(new Object[]{"Categoría", "Cantidad"}, 0) {
+            @Override
+            public boolean isCellEditable(int fila, int columna) { return false; }
+        };
         tablaEstadisticas = new JTable(modeloTabla);
         JScrollPane scrollTabla = new JScrollPane(tablaEstadisticas);
         scrollTabla.setPreferredSize(new Dimension(350, 160));
 
         dataset = new DefaultCategoryDataset();
         grafico = ChartFactory.createBarChart(
-                "Reservas por recurso", "Recurso", "Cantidad",
+                "Recursos Usados", "Categoría", "Cantidad",
                 dataset, PlotOrientation.VERTICAL, false, true, false);
         org.jfree.chart.plot.CategoryPlot plot = grafico.getCategoryPlot();
         ((org.jfree.chart.renderer.category.BarRenderer) plot.getRenderer())
@@ -109,78 +123,81 @@ public class EstadisticasRecursosPanel extends JPanel {
     }
 
     public void configurarDependencias(ReservaRepository reservaRepo) {
-        this.reservaRepo = reservaRepo;
+        this.servicio = new EstadisticasRecursosService(reservaRepo);
     }
 
     private void onCalcular() {
-        if (reservaRepo == null) {
-            lblMensaje.setText("El servicio no está configurado.");
+        if (servicio == null) {
+            mostrarError("El servicio no está configurado.");
             return;
         }
+        try {
+            LocalDate desde = obtenerFecha(spnDesde);
+            LocalDate hasta = obtenerFecha(spnHasta);
 
-        List<Recurso> recursos = recursoRepo.listarTodos();
-        List<Reserva> reservas = reservaRepo.listar();
+            Map<String, Integer> resultado = servicio.contarPorCategoria(desde, hasta);
 
-        LinkedHashMap<String, Integer> resultado = new LinkedHashMap<>();
-        for (Recurso recurso : recursos) {
-            long count = reservas.stream()
-                    .flatMap(r -> r.getDetalles().stream())
-                    .filter(d -> d.getRecurso() != null && d.getRecurso().getId().equals(recurso.getId()))
-                    .count();
-            resultado.put(recurso.getDescripcion(), (int) count);
+            ultimoResultado = resultado;
+            ultimoPeriodo = "Del " + desde + " al " + hasta;
+
+            modeloTabla.setRowCount(0);
+            dataset.clear();
+
+            for (Map.Entry<String, Integer> entrada : resultado.entrySet()) {
+                modeloTabla.addRow(new Object[]{entrada.getKey(), entrada.getValue()});
+                dataset.addValue(entrada.getValue(), "Recurso", entrada.getKey());
+            }
+
+            if (resultado.isEmpty()) {
+                mostrarError("No hay reservas en el período indicado.");
+            } else {
+                lblMensaje.setText(" ");
+            }
+            btnImprimir.setEnabled(true);
+
+        } catch (IllegalArgumentException e) {
+            mostrarError(e.getMessage());
         }
+    }
 
-        this.ultimoResultado = resultado;
-        modeloTabla.setRowCount(0);
-        dataset.clear();
-
-        for (Map.Entry<String, Integer> entry : resultado.entrySet()) {
-            modeloTabla.addRow(new Object[]{entry.getKey(), entry.getValue()});
-            dataset.addValue(entry.getValue(), "Reservas", entry.getKey());
-        }
-
-        if (resultado.isEmpty()) {
-            lblMensaje.setText("No hay recursos registrados.");
-        } else {
-            lblMensaje.setText(" ");
-        }
-        btnImprimir.setEnabled(true);
+    private LocalDate obtenerFecha(JSpinner spinner) {
+        java.util.Date fechaUtil = (java.util.Date) spinner.getValue();
+        return fechaUtil.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
     }
 
     private void onImprimir() {
         if (ultimoResultado == null) {
-            lblMensaje.setText("Primero debe calcular las estadísticas.");
+            mostrarError("Primero debe calcular las estadísticas.");
             return;
         }
         try {
-            ReportTable tabla = new ReportTable(java.util.List.of("Recurso", "Cantidad de reservas"));
-            for (Map.Entry<String, Integer> entry : ultimoResultado.entrySet()) {
-                tabla.agregarFila(entry.getKey(), String.valueOf(entry.getValue()));
-            }
+            ReportTable tabla = new ReportTable(List.of("Categoría", "Cantidad"));
+            for (Map.Entry<String, Integer> entrada : ultimoResultado.entrySet())
+                tabla.agregarFila(entrada.getKey(), String.valueOf(entrada.getValue()));
 
             ReportHeader header = new ReportHeader(
                     "Estadísticas de Recursos",
                     SessionManager.getInstancia().getUsuarioActual().getId(),
-                    null
-            );
+                    ultimoPeriodo);
 
             byte[] imagenGrafico = capturarGraficoComoPng();
             String ruta = elegirRutaGuardado();
-            if (ruta == null) {
-                return;
-            }
+            if (ruta == null) return;
 
             pdfReportService.reporteGrafico(ruta, header, tabla, imagenGrafico);
             lblMensaje.setForeground(new Color(0, 122, 47));
             lblMensaje.setText("Reporte generado en: " + ruta);
 
         } catch (ReportException e) {
-            lblMensaje.setForeground(new Color(180, 0, 0));
-            lblMensaje.setText("Error al generar el PDF: " + e.getMessage());
+            mostrarError("Error al generar el PDF: " + e.getMessage());
         } catch (Exception e) {
-            lblMensaje.setForeground(new Color(180, 0, 0));
-            lblMensaje.setText("Error: " + e.getMessage());
+            mostrarError("Error: " + e.getMessage());
         }
+    }
+
+    private void mostrarError(String mensaje) {
+        lblMensaje.setForeground(new Color(180, 0, 0));
+        lblMensaje.setText(mensaje);
     }
 
     private byte[] capturarGraficoComoPng() throws Exception {
@@ -189,7 +206,7 @@ public class EstadisticasRecursosPanel extends JPanel {
         ImageIO.write(imagen, "png", buffer);
         return buffer.toByteArray();
     }
-    /** Abre un diálogo "Guardar como" y devuelve la ruta elegida, o null si el usuario cancela. */
+
     private String elegirRutaGuardado() {
         JFileChooser selector = new JFileChooser();
         selector.setDialogTitle("Guardar reporte PDF");
@@ -197,15 +214,11 @@ public class EstadisticasRecursosPanel extends JPanel {
         selector.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Archivos PDF (*.pdf)", "pdf"));
 
         int resultado = selector.showSaveDialog(this);
-        if (resultado != JFileChooser.APPROVE_OPTION) {
-            return null;
-        }
+        if (resultado != JFileChooser.APPROVE_OPTION) return null;
 
         java.io.File archivo = selector.getSelectedFile();
         String ruta = archivo.getAbsolutePath();
-        if (!ruta.toLowerCase().endsWith(".pdf")) {
-            ruta += ".pdf";
-        }
+        if (!ruta.toLowerCase().endsWith(".pdf")) ruta += ".pdf";
         return ruta;
     }
 }

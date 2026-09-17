@@ -7,7 +7,7 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.net.URL;
 import java.util.List;
-
+//categorias
 public class CategoriasView extends JPanel {
 
     private JTextField campoBuscarDescripcion;

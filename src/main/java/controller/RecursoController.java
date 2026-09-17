@@ -249,9 +249,17 @@ public class RecursoController extends JPanel {
             }
             String usuario = SessionManager.getInstancia().getUsuarioActual().getId();
             ReportHeader header = new ReportHeader("Listado de Recursos", usuario, null);
-            String ruta = "recursos.pdf";
+
+            JFileChooser selector = new JFileChooser();
+            selector.setDialogTitle("Guardar reporte PDF");
+            selector.setSelectedFile(new java.io.File("recursos.pdf"));
+            selector.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Archivos PDF (*.pdf)", "pdf"));
+            if (selector.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
+            String ruta = selector.getSelectedFile().getAbsolutePath();
+            if (!ruta.toLowerCase().endsWith(".pdf")) ruta += ".pdf";
+
             new PdfReportService().generarReporteTabla(ruta, header, tabla);
-            JOptionPane.showMessageDialog(this, "Reporte generado: " + new java.io.File(ruta).getAbsolutePath());
+            JOptionPane.showMessageDialog(this, "Reporte generado: " + ruta);
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Error al generar el reporte: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
@@ -274,7 +282,9 @@ public class RecursoController extends JPanel {
     }
 
     private Recurso construirRecurso() {
-        return new Recurso(txtId.getText(), (CategoriaRecurso) cmbCategoria.getSelectedItem(), txtDescripcion.getText());
+        CategoriaRecurso cat = (CategoriaRecurso) cmbCategoria.getSelectedItem();
+        if (cat == null) throw new IllegalArgumentException("Debe seleccionar una categoría.");
+        return new Recurso(txtId.getText(), cat, txtDescripcion.getText());
     }
 
     private void guardar() {

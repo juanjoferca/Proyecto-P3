@@ -74,13 +74,13 @@ public class RecursoXmlRepository implements RecursoRepository {
             for (int i = 0; i < nodeList.getLength(); i++) {
                 Element elementoRecurso = (Element) nodeList.item(i);
                 String id = elementoRecurso.getElementsByTagName("id").item(0).getTextContent();
-                String categoriaId = elementoRecurso.getElementsByTagName("categoria").item(0).getTextContent();
                 String descripcion = elementoRecurso.getElementsByTagName("descripcion").item(0).getTextContent();
+                String categoriaId = elementoRecurso.getElementsByTagName("categoria").item(0).getTextContent();
                 CategoriaRecurso cat = new CategoriaXmlRepository().buscarPorId(categoriaId);
                 if (cat == null) cat = new CategoriaRecurso(categoriaId, categoriaId);
                 Recurso recurso = new Recurso(id, cat, descripcion);
                 recursos.add(recurso);
-                System.out.println("Recurso ID: " + id + ", Categoria: " + categoriaId + ", Descripcion: " + descripcion);
+                System.out.println("Recurso ID: " + id + ", Categoria: " + cat.getId() + ", Descripcion: " + descripcion);
             }
             return recursos;
 

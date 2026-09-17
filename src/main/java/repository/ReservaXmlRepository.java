@@ -171,7 +171,9 @@ public class ReservaXmlRepository implements ReservaRepository {
                 String categoriaId = texto(elementoDetalle, "categoria");
                 Recurso recurso = recursoRepository.buscarPorId(recursoId);
                 if (recurso != null) {
-                    reserva.getDetalles().add(new DetalleReserva(CategoriaRecurso.valueOf(categoriaId), recurso));
+                    CategoriaRecurso cat = new repository.CategoriaXmlRepository().buscarPorId(categoriaId);
+                    if (cat == null) cat = new CategoriaRecurso(categoriaId, categoriaId);
+                    reserva.getDetalles().add(new DetalleReserva(cat, recurso));
                 }
             }
         }

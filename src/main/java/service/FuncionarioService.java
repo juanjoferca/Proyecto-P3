@@ -92,10 +92,11 @@ public class FuncionarioService {
             throw new IllegalArgumentException("No existe un funcionario con ese ID.");
         }
 
-        // Eliminar reservas del funcionario
-        reservaRepository.listar().stream()
+        // Eliminar reservas del funcionario (copiar lista para evitar ConcurrentModificationException)
+        List<model.Reserva> reservasDelFuncionario = reservaRepository.listar().stream()
                 .filter(r -> id.trim().equals(r.getFuncionarioId()))
-                .forEach(reservaRepository::eliminar);
+                .collect(java.util.stream.Collectors.toList());
+        reservasDelFuncionario.forEach(reservaRepository::eliminar);
 
         funcionarioRepository.eliminar(id.trim());
         usuarioRepository.eliminar(id.trim());

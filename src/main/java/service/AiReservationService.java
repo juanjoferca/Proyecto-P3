@@ -39,11 +39,8 @@ public class AiReservationService {
         try {
             Client client = Client.builder().apiKey(System.getenv("GEMINI_API_KEY")).build();
 
-            GenerateContentResponse respuesta = client.models.generateContent(
-                    "gemini-3.6-flash",
-                    construirPrompt(solicitud),
-                    null
-            );
+            GenerateContentResponse respuesta = client.models.generateContent("gemini-2.0-flash",
+                    construirPrompt(solicitud), null);
 
             String texto = respuesta.text();
 
@@ -51,7 +48,6 @@ public class AiReservationService {
                 throw new AiReservationException("La IA no devolvió ningún resultado.");
             }
 
-            // Limpiar bloques de markdown si la IA los incluye
             texto = texto.strip();
             if (texto.startsWith("```")) {
                 texto = texto.replaceAll("^```[a-zA-Z]*\\n?", "").replaceAll("```$", "").strip();

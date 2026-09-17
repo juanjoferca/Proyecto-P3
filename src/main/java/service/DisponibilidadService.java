@@ -16,6 +16,7 @@ import java.util.Objects;
 
 public class DisponibilidadService {
 
+    private final Object lock = new Object();
     private final RecursoRepository recursoRepository;
     private final ReservaRepository reservaRepository;
     public DisponibilidadService(){
@@ -28,34 +29,41 @@ public class DisponibilidadService {
         this.reservaRepository = reservaRepository;
     }
 
-    boolean estaDisponible(Recurso recurso, LocalDate fecha, LocalTime inicio, LocalTime fin){
+    boolean estaDisponible(Recurso recurso, LocalDate fecha, LocalTime horaInicio, LocalTime horaFin){
         List<Reserva> reservas = reservaRepository.listar();
+
         for (Reserva reserva : reservas) {
-            if (reserva.getFecha().equals(fecha) && reserva.getEstado() == EstadoReserva.ACTIVA) {
+            if (reserva.getEstado() != EstadoReserva.ACTIVA) continue;
+            if (!reserva.getFecha().equals(fecha)) continue;
+
+            // Verificar si hay superposición de horas
+            boolean hayConflicto = !horaFin.isAfter(reserva.getHoraInicio()) ||
+                    !horaInicio.isBefore(reserva.getHoraFin());
+
+            if (!hayConflicto) {
+                // Verificar si este recurso está involucrado en la reserva
                 for (DetalleReserva detalle : reserva.getDetalles()) {
-                    if (detalle.getRecurso().getId().equals(recurso.getId())) {
-                        if (inicio.isBefore(reserva.getHoraFin()) && fin.isAfter(reserva.getHoraInicio())) {
-                            return false;
-                        }
+                    if (recurso.getId().equals(detalle.getRecurso().getId())) {
+                        return false;
                     }
                 }
             }
         }
-        return true;
+
+        return true;  // Recurso está disponible
     }
 
-    public Recurso buscarRecursoDisponible(CategoriaRecurso categoria, LocalDate fecha, LocalTime inicio, LocalTime fin){
-        if(categoria == null || fecha == null || inicio == null || fin == null){
-            throw new IllegalArgumentException("Los parámetros no pueden ser nulos");
-        }
-        List<Recurso> recursos = recursoRepository.listar();
-        recursos.removeIf(recurso -> !Objects.equals(recurso.getCategoria(), categoria));
+    public Recurso buscarRecursoDisponible(CategoriaRecurso categoria, LocalDate fecha, LocalTime horaInicio, LocalTime horaFin) {
+        synchronized (lock) {
+            List<Recurso> recursosDeCategoria = recursoRepository.buscarPorCategoria(categoria.getId());
 
-         for (Recurso recurso : recursos) {
-            if (estaDisponible(recurso, fecha, inicio, fin)) {
-                return recurso;
+            for (Recurso recurso : recursosDeCategoria) {
+                if (estaDisponible(recurso, fecha, horaInicio, horaFin)) {
+                    return recurso;
+                }
             }
+
+            return null;
         }
-        return null;
     }
 }

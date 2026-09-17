@@ -74,13 +74,12 @@ public class CategoriaService {
         if (recursoRepository != null && reservaRepository != null) {
             List<Recurso> recursos = recursoRepository.buscarPorCategoria(id);
             for (Recurso recurso : recursos) {
-                List<Reserva> reservas = reservaRepository.listar();
-                for (Reserva reserva : reservas) {
-                    boolean usaRecurso = reserva.getDetalles().stream()
-                            .anyMatch(d -> d.getRecurso() != null
-                                    && d.getRecurso().getId().equals(recurso.getId()));
-                    if (usaRecurso) reservaRepository.eliminar(reserva);
-                }
+                List<Reserva> reservasConRecurso = reservaRepository.listar().stream()
+                        .filter(r -> r.getDetalles().stream()
+                                .anyMatch(d -> d.getRecurso() != null
+                                        && d.getRecurso().getId().equals(recurso.getId())))
+                        .collect(java.util.stream.Collectors.toList());
+                reservasConRecurso.forEach(reservaRepository::eliminar);
                 recursoRepository.eliminar(recurso);
             }
         }
