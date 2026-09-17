@@ -13,29 +13,24 @@ import java.util.List;
 public class FuncionarioXmlRepository implements FuncionarioRepository {
 
     private static final String ARCHIVO = "funcionarios.xml";
-    private FuncionariosWrapper datos;
 
-    public FuncionarioXmlRepository() {
-        cargar();
-    }
-
-    private void cargar() {
+    private FuncionariosWrapper cargar() {
         File archivo = new File(ARCHIVO);
         if (!archivo.exists()) {
-            datos = new FuncionariosWrapper();
-            guardarEnArchivo();
-            return;
+            FuncionariosWrapper datos = new FuncionariosWrapper();
+            guardarEnArchivo(datos);
+            return datos;
         }
         try {
             JAXBContext contexto = JAXBContext.newInstance(FuncionariosWrapper.class);
             Unmarshaller unmarshaller = contexto.createUnmarshaller();
-            datos = (FuncionariosWrapper) unmarshaller.unmarshal(archivo);
+            return (FuncionariosWrapper) unmarshaller.unmarshal(archivo);
         } catch (JAXBException e) {
             throw new RuntimeException("No se pudo leer " + ARCHIVO, e);
         }
     }
 
-    private void guardarEnArchivo() {
+    private void guardarEnArchivo(FuncionariosWrapper datos) {
         try {
             JAXBContext contexto = JAXBContext.newInstance(FuncionariosWrapper.class);
             Marshaller marshaller = contexto.createMarshaller();
@@ -48,12 +43,12 @@ public class FuncionarioXmlRepository implements FuncionarioRepository {
 
     @Override
     public List<Funcionario> listarTodos() {
-        return datos.getFuncionarios();
+        return cargar().getFuncionarios();
     }
 
     @Override
     public Funcionario buscarPorId(String id) {
-        return datos.getFuncionarios().stream()
+        return cargar().getFuncionarios().stream()
                 .filter(f -> f.getId().equals(id))
                 .findFirst()
                 .orElse(null);
@@ -61,18 +56,16 @@ public class FuncionarioXmlRepository implements FuncionarioRepository {
 
     @Override
     public void guardar(Funcionario funcionario) {
-        eliminarSinPersistir(funcionario.getId());
+        FuncionariosWrapper datos = cargar();
+        datos.getFuncionarios().removeIf(f -> f.getId().equals(funcionario.getId()));
         datos.getFuncionarios().add(funcionario);
-        guardarEnArchivo();
+        guardarEnArchivo(datos);
     }
 
     @Override
     public void eliminar(String id) {
-        eliminarSinPersistir(id);
-        guardarEnArchivo();
-    }
-
-    private void eliminarSinPersistir(String id) {
+        FuncionariosWrapper datos = cargar();
         datos.getFuncionarios().removeIf(f -> f.getId().equals(id));
+        guardarEnArchivo(datos);
     }
 }
