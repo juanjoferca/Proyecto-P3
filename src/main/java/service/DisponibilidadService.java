@@ -54,6 +54,9 @@ public class DisponibilidadService {
     }
 
     public Recurso buscarRecursoDisponible(CategoriaRecurso categoria, LocalDate fecha, LocalTime horaInicio, LocalTime horaFin) {
+        if (categoria == null || fecha == null || horaInicio == null || horaFin == null) {
+            throw new IllegalArgumentException("Categoría, fecha, hora de inicio y hora de fin son obligatorias.");
+        }
         synchronized (lock) {
             List<Recurso> recursosDeCategoria = recursoRepository.buscarPorCategoria(categoria.getId());
 

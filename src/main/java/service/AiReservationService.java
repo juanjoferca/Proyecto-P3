@@ -16,7 +16,7 @@ public class AiReservationService {
     public AiReservationResponse interpretarSolicitud(String solicitud) throws AiReservationException {
 
         if (solicitud == null || solicitud.trim().isEmpty()) {
-            throw new AiReservationException("La solicitud no puede estar vacía.");
+            throw new IllegalArgumentException("La solicitud no puede estar vacía.");
         }
 
         try {
