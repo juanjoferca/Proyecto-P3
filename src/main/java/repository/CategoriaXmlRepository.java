@@ -13,29 +13,24 @@ import java.util.List;
 public class CategoriaXmlRepository implements CategoriaRepository {
 
     private static final String ARCHIVO = "categorias.xml";
-    private CategoriasWrapper datos;
 
-    public CategoriaXmlRepository() {
-        cargar();
-    }
-
-    private void cargar() {
+    private CategoriasWrapper cargar() {
         File archivo = new File(ARCHIVO);
         if (!archivo.exists()) {
-            datos = new CategoriasWrapper();
-            guardarEnArchivo();
-            return;
+            CategoriasWrapper datos = new CategoriasWrapper();
+            guardarEnArchivo(datos);
+            return datos;
         }
         try {
             JAXBContext contexto = JAXBContext.newInstance(CategoriasWrapper.class);
             Unmarshaller unmarshaller = contexto.createUnmarshaller();
-            datos = (CategoriasWrapper) unmarshaller.unmarshal(archivo);
+            return (CategoriasWrapper) unmarshaller.unmarshal(archivo);
         } catch (JAXBException e) {
             throw new RuntimeException("No se pudo leer " + ARCHIVO, e);
         }
     }
 
-    private void guardarEnArchivo() {
+    private void guardarEnArchivo(CategoriasWrapper datos) {
         try {
             JAXBContext contexto = JAXBContext.newInstance(CategoriasWrapper.class);
             Marshaller marshaller = contexto.createMarshaller();
@@ -53,12 +48,12 @@ public class CategoriaXmlRepository implements CategoriaRepository {
 
     @Override
     public List<CategoriaRecurso> listarTodos() {
-        return datos.getCategorias();
+        return cargar().getCategorias();
     }
 
     @Override
     public CategoriaRecurso buscarPorId(String id) {
-        return datos.getCategorias().stream()
+        return cargar().getCategorias().stream()
                 .filter(c -> c.getId().equals(id))
                 .findFirst()
                 .orElse(null);
@@ -66,18 +61,16 @@ public class CategoriaXmlRepository implements CategoriaRepository {
 
     @Override
     public void guardar(CategoriaRecurso categoria) {
-        eliminarSinPersistir(categoria.getId());
+        CategoriasWrapper datos = cargar();
+        datos.getCategorias().removeIf(c -> c.getId().equals(categoria.getId()));
         datos.getCategorias().add(categoria);
-        guardarEnArchivo();
+        guardarEnArchivo(datos);
     }
 
     @Override
     public void eliminar(String id) {
-        eliminarSinPersistir(id);
-        guardarEnArchivo();
-    }
-
-    private void eliminarSinPersistir(String id) {
+        CategoriasWrapper datos = cargar();
         datos.getCategorias().removeIf(c -> c.getId().equals(id));
+        guardarEnArchivo(datos);
     }
 }
