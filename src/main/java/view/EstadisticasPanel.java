@@ -17,12 +17,12 @@ import java.awt.*;
 public class EstadisticasPanel extends JPanel {
 
     private final JTabbedPane tabbedPane;
-    private final CalendarizacionRecursosPanel.EstadisticasActividadesPanel panelActividades;
+    private final EstadisticasActividadesPanel panelActividades;
 
     public EstadisticasPanel() {
         setLayout(new BorderLayout());
         tabbedPane = new JTabbedPane();
-        panelActividades = new CalendarizacionRecursosPanel.EstadisticasActividadesPanel();
+        panelActividades = new EstadisticasActividadesPanel();
         add(tabbedPane, BorderLayout.CENTER);
     }
 

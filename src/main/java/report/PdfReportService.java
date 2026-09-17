@@ -46,7 +46,8 @@ public class PdfReportService {
 
         Document documento = new Document(PageSize.A4, 36, 36, 54, 54);
         try (FileOutputStream salida = new FileOutputStream(rutaSalida)) {
-            PdfWriter.getInstance(documento, salida);
+            PdfWriter writer = PdfWriter.getInstance(documento, salida);
+            writer.setPageEvent(new PiePaginaConNumero());
             documento.open();
 
             agregarEncabezado(documento, header);
