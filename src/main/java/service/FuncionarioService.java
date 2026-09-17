@@ -63,7 +63,7 @@ public class FuncionarioService {
         Funcionario funcionario = new Funcionario(id.trim(), nombre.trim(), telefono.trim());
         funcionarioRepository.guardar(funcionario);
 
-        Usuario usuario = new Usuario(id.trim(), id.trim(), Rol.FUNCIONARIO);
+        Usuario usuario = new Usuario(id.trim(), AuthService.hashear(id.trim()), Rol.FUNCIONARIO);
         usuarioRepository.guardar(usuario);
     }
 

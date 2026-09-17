@@ -5,6 +5,7 @@ import model.Rol;
 import model.Usuario;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import service.AuthService;
 import service.FuncionarioService;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -31,12 +32,12 @@ class FuncionarioServiceTest {
     }
 
     @Test
-    void alIncluirSeCreaSuUsuarioConClaveIgualAlId() {
+    void alIncluirSeCreaSuUsuarioConClaveIgualAlIdHasheada() {
         servicio.incluir("111", "Juan Perez", "3323");
 
         Usuario usuario = usuarios.buscarPorId("111");
         assertNotNull(usuario);
-        assertEquals("111", usuario.getClave());
+        assertEquals(AuthService.hashear("111"), usuario.getClave());
         assertEquals(Rol.FUNCIONARIO, usuario.getRol());
     }
 

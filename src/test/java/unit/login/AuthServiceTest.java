@@ -90,10 +90,10 @@ class AuthServiceTest {
 
     @Test
     void cambiaLaClaveDesdeElLogin() {
-        authService.cambiarClave("111", "111", "nueva", "nueva");
+        authService.cambiarClave("111", "111", "nuevaclave", "nuevaclave");
 
-        assertEquals("nueva", usuarios.buscarPorId("111").getClave());
-        assertDoesNotThrow(() -> authService.iniciarSesion("111", "nueva"));
+        assertEquals(AuthService.hashear("nuevaclave"), usuarios.buscarPorId("111").getClave());
+        assertDoesNotThrow(() -> authService.iniciarSesion("111", "nuevaclave"));
     }
 
     @Test
@@ -107,7 +107,7 @@ class AuthServiceTest {
     @Test
     void noCambiaLaClaveSiLaConfirmacionNoCoincide() {
         assertThrows(IllegalArgumentException.class,
-                () -> authService.cambiarClave("111", "111", "nueva", "distinta"));
+                () -> authService.cambiarClave("111", "111", "nuevaclave", "distinta"));
     }
 
     @Test
@@ -117,12 +117,18 @@ class AuthServiceTest {
     }
 
     @Test
+    void noPermiteClaveNuevaMenorAlMinimo() {
+        assertThrows(IllegalArgumentException.class,
+                () -> authService.cambiarClave("111", "111", "abc", "abc"));
+    }
+
+    @Test
     void cambiaLaClaveConSesionActiva() {
         authService.iniciarSesion("admin", "admin");
 
-        authService.cambiarClave("admin", "nueva", "nueva");
+        authService.cambiarClave("admin", "nuevaclave", "nuevaclave");
 
-        assertEquals("nueva", usuarios.buscarPorId("admin").getClave());
+        assertEquals(AuthService.hashear("nuevaclave"), usuarios.buscarPorId("admin").getClave());
     }
 
     @Test

@@ -3,7 +3,13 @@ package service;
 import model.Usuario;
 import repository.UsuarioRepository;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
 public class AuthService {
+
+    private static final int LARGO_MINIMO_CLAVE = 6;
 
     private final UsuarioRepository usuarioRepository;
 
@@ -21,7 +27,7 @@ public class AuthService {
             throw new IllegalArgumentException("No existe un usuario con ese ID.");
         }
 
-        if (!usuario.getClave().equals(clave)) {
+        if (!coincideConClaveGuardada(usuario, clave)) {
             throw new IllegalArgumentException("La clave es incorrecta.");
         }
 
@@ -69,7 +75,7 @@ public class AuthService {
     }
 
     private void aplicarCambio(Usuario usuario, String claveActual, String claveNueva, String confirmacion) {
-        if (!usuario.getClave().equals(claveActual)) {
+        if (!coincideConClaveGuardada(usuario, claveActual)) {
             throw new IllegalArgumentException("La clave actual no coincide.");
         }
 
@@ -77,11 +83,46 @@ public class AuthService {
             throw new IllegalArgumentException("La clave nueva no puede estar vacía.");
         }
 
+        if (claveNueva.length() < LARGO_MINIMO_CLAVE) {
+            throw new IllegalArgumentException("La clave nueva debe tener al menos "
+                    + LARGO_MINIMO_CLAVE + " caracteres.");
+        }
+
         if (!claveNueva.equals(confirmacion)) {
             throw new IllegalArgumentException("Las claves nuevas no coinciden.");
         }
 
-        usuario.setClave(claveNueva);
+        usuario.setClave(hashear(claveNueva));
         usuarioRepository.guardar(usuario);
+    }
+
+    private boolean coincideConClaveGuardada(Usuario usuario, String claveIngresada) {
+        String claveGuardada = usuario.getClave();
+
+        if (claveGuardada.equals(hashear(claveIngresada))) {
+            return true;
+        }
+
+        if (claveGuardada.equals(claveIngresada)) {
+            usuario.setClave(hashear(claveIngresada));
+            usuarioRepository.guardar(usuario);
+            return true;
+        }
+
+        return false;
+    }
+
+    public static String hashear(String clave) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(clave.getBytes(StandardCharsets.UTF_8));
+            StringBuilder resultado = new StringBuilder();
+            for (byte b : hash) {
+                resultado.append(String.format("%02x", b));
+            }
+            return resultado.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("No se pudo calcular el hash de la clave.", e);
+        }
     }
 }
