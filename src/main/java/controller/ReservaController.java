@@ -13,6 +13,7 @@ import repository.RecursoXmlRepository;
 import repository.ReservaXmlRepository;
 import service.*;
 import repository.CategoriaXmlRepository;
+import view.Tema;
 
 import javax.swing.*;
 import javax.swing.event.ListSelectionEvent;
@@ -92,7 +93,7 @@ public class ReservaController extends JPanel {
 
         add(panelSuperior, BorderLayout.NORTH);
         add(construirTabla(), BorderLayout.CENTER);
-        util.Tema.aplicar(this);
+        Tema.aplicar(this);
     }
 
     /** Zona de "llenar con IA": frase en lenguaje natural + extracción automática. */
@@ -267,7 +268,7 @@ public class ReservaController extends JPanel {
         for (CategoriaRecurso categoria : new CategoriaService(new CategoriaXmlRepository()).listarTodos()) {
             JCheckBox chk = new JCheckBox(categoria.getDescripcion());
             chk.putClientProperty("categoria", categoria);
-            chk.setBackground(util.Tema.FONDO);
+            chk.setBackground(Tema.FONDO);
             checksCategorias.add(chk);
             panelChecksCategorias.add(chk);
         }
@@ -298,11 +299,10 @@ public class ReservaController extends JPanel {
                 return;
             }
 
-            ReportTable tabla = new ReportTable();
-            tabla.agregarEncabezado(new String[]{"ID", "Actividad", "Fecha", "Inicio", "Fin", "Funcionario", "Estado"});
+            ReportTable tabla = new ReportTable(List.of("ID", "Actividad", "Fecha", "Inicio", "Fin", "Funcionario", "Estado"));
 
             for (Reserva reserva : reservas) {
-                tabla.agregarFila(new String[]{
+                tabla.agregarFila(
                         reserva.getId(),
                         reserva.getActividad(),
                         reserva.getFecha().toString(),
@@ -310,7 +310,7 @@ public class ReservaController extends JPanel {
                         reserva.getHoraFin().toString(),
                         reserva.getFuncionarioId(),
                         reserva.getEstado().toString()
-                });
+                );
             }
 
             ReportHeader header = new ReportHeader(
